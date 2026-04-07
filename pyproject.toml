@@ -2,7 +2,7 @@
 name = "library-management-system"
 version = "0.1.0"
 description = ""
-authors = ["Pedro <pedrosantoscrlx@gmail.com>"]
+authors = ["Pedro Santos <pedro_santos@eticalgarve.com>", "Lucas Cleminson <lucas_cleminson@eticalgarve.com>", "Diogo Lopes <diogo_lopes@eticalgarve.com>"]
 license = "MIT"
 readme = "README.md"
 

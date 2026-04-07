@@ -1,4 +1,4 @@
-# Library Management System
+# Midnight Library
 
 A comprehensive web-based application for managing library operations, including book inventory, user management, and borrowing processes. This project focuses on robust database design and efficient data handling.
 
@@ -117,7 +117,7 @@ The database consists of the following key entities and relationships:
     make clean
     ```
 
-## 🧪 Testing
+## Testing
 
 The project includes a comprehensive integration test suite using `pytest`.
 
