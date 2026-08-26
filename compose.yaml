@@ -4,8 +4,6 @@ services:
     restart: always
     volumes:
       - db_data:/var/lib/postgresql/data
-    ports:
-      - 5432:5432
     env_file:
       - .env
     networks:
@@ -28,8 +26,6 @@ services:
   adminer:
     image: adminer
     restart: always
-    ports:
-      - 8080:8080
     networks:
       - database_network
     depends_on:
