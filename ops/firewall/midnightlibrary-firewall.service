@@ -1,0 +1,13 @@
+[Unit]
+Description=Restrict Midnight Library Docker ports to Cloudflare
+Wants=network-online.target
+After=network-online.target docker.service
+Requires=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/midnightlibrary-cloudflare-firewall
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

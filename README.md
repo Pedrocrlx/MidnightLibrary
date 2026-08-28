@@ -132,3 +132,33 @@ make test
 *   Borrowing logic & limits
 *   Admin CRUD operations
 *   Permission & Security checks
+
+## Production deployment (Ubuntu 22.04 + Cloudflare)
+
+Production uses `compose.prod.yaml`: only Nginx publishes ports (`80` and
+`443`); Django, PostgreSQL and their Docker network remain private. Nginx uses
+a Cloudflare Origin Certificate and the host firewall accepts web traffic only
+from Cloudflare's published IP ranges.
+
+On the VPS, clone the repository and run:
+
+```bash
+chmod +x scripts/setup-production.sh
+./scripts/setup-production.sh
+```
+
+The wizard configures `.env`, installs the Origin Certificate, sets UFW rules,
+starts the stack, and runs Django's deployment checks. Keep the DNS record
+proxied and Cloudflare SSL/TLS mode set to **Full (strict)**. Before enabling
+UFW, verify the SSH port with `sudo sshd -T | grep '^port'`; Ubuntu's default is
+port `22`.
+
+Useful production commands:
+
+```bash
+docker compose -f compose.prod.yaml ps
+docker compose -f compose.prod.yaml logs -f nginx app
+docker compose -f compose.prod.yaml exec app poetry run python django-app/manage.py createsuperuser
+docker compose -f compose.prod.yaml pull
+docker compose -f compose.prod.yaml up -d --build
+```
