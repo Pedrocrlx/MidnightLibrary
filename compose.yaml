@@ -14,6 +14,7 @@ services:
       dockerfile: ops/Dockerfile
     ports:
       - 8000:8000
+    command: poetry run python django-app/manage.py runserver 0.0.0.0:8000
     volumes:
       - ./:/app/
     env_file:
