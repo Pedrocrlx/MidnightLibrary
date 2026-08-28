@@ -18,6 +18,22 @@ RUN poetry install \
     --no-ansi
 
 
+FROM builder AS development
+
+ENV PATH="/app/.venv/bin:$PATH"
+
+RUN poetry install \
+    --with dev \
+    --no-root \
+    --no-ansi
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["python", "django-app/manage.py", "runserver", "0.0.0.0:8000"]
+
+
 FROM python:3.12-slim AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \

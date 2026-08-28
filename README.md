@@ -158,7 +158,7 @@ Useful production commands:
 ```bash
 docker compose -f compose.prod.yaml ps
 docker compose -f compose.prod.yaml logs -f nginx app
-docker compose -f compose.prod.yaml exec app poetry run python django-app/manage.py createsuperuser
+docker compose -f compose.prod.yaml exec app python django-app/manage.py createsuperuser
 docker compose -f compose.prod.yaml pull
 docker compose -f compose.prod.yaml up -d --build
 ```

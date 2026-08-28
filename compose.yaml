@@ -12,11 +12,13 @@ services:
     build:
       context: .
       dockerfile: ops/Dockerfile
+      target: development
     ports:
       - 8000:8000
-    command: poetry run python django-app/manage.py runserver 0.0.0.0:8000
+    command: python django-app/manage.py runserver 0.0.0.0:8000
     volumes:
       - ./:/app/
+      - /app/.venv
     env_file:
       - .env
     depends_on:

@@ -116,7 +116,7 @@ stage "Arranque da aplicação"
 docker compose -f compose.prod.yaml up -d --build
 sudo systemctl restart midnightlibrary-firewall.service
 docker compose -f compose.prod.yaml ps
-docker compose -f compose.prod.yaml exec app poetry run python django-app/manage.py check --deploy
+docker compose -f compose.prod.yaml exec app python django-app/manage.py check --deploy
 
 stage "SSL/TLS e validação"
 printf 'Na Cloudflare: SSL/TLS → Overview → seleciona Full (strict).\n'
