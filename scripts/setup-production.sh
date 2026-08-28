@@ -3,6 +3,13 @@
 # Generated using the /wizard skill.
 set -euo pipefail
 
+# Ensure an interrupted hidden-password prompt never leaves the terminal with
+# keyboard echo disabled.
+restore_terminal() {
+  [[ -t 0 ]] && stty echo 2>/dev/null || true
+}
+trap restore_terminal EXIT INT TERM
+
 DOMAIN="midnightlibrary.pedrocrlx.pt"
 ENV_FILE="${ENV_FILE:-.env}"
 TOTAL_STAGES=6
@@ -44,9 +51,12 @@ stage "Cloudflare Origin Certificate"
 printf 'Abre: https://dash.cloudflare.com/\n'
 printf 'Vai a pedrocrlx.pt → SSL/TLS → Origin Server → Create Certificate.\n'
 printf 'Escolhe PEM, inclui %s e guarda o certificado e a chave em ficheiros locais.\n' "$DOMAIN"
-read -r -p "Caminho do certificado PEM: " CERT_SOURCE
-read -r -s -p "Caminho da chave privada PEM: " KEY_SOURCE
-printf '\n'
+DEFAULT_CERT_SOURCE="$HOME/cloudflare-origin-certificate.pem"
+DEFAULT_KEY_SOURCE="$HOME/cloudflare-origin-certificate.key"
+read -r -p "Caminho do certificado PEM [$DEFAULT_CERT_SOURCE]: " CERT_SOURCE
+CERT_SOURCE=${CERT_SOURCE:-$DEFAULT_CERT_SOURCE}
+read -r -p "Caminho da chave privada PEM [$DEFAULT_KEY_SOURCE]: " KEY_SOURCE
+KEY_SOURCE=${KEY_SOURCE:-$DEFAULT_KEY_SOURCE}
 [[ -f "$CERT_SOURCE" && -f "$KEY_SOURCE" ]] || { echo "Certificado ou chave não encontrados"; exit 1; }
 mkdir -p secrets
 install -m 0644 "$CERT_SOURCE" secrets/cloudflare-origin.pem
