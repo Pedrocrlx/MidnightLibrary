@@ -1,164 +1,149 @@
 # Midnight Library
 
-A comprehensive web-based application for managing library operations, including book inventory, user management, and borrowing processes. This project focuses on robust database design and efficient data handling.
+A production-deployed library management system built with Django and
+PostgreSQL. It supports catalogue management, borrowing workflows, user roles,
+inventory control, and secure public access through a Cloudflare-protected VPS.
 
-## Project Overview
+**Live application:** [midnightlibrary.pedrocrlx.pt](https://midnightlibrary.pedrocrlx.pt)
 
-This Library Management System is built with Django and PostgreSQL, designed to streamline the operations of a modern library. It provides distinct interfaces for administrators (librarians) and standard users, ensuring secure and efficient access to library resources.
+## Overview
 
-## Database Design
+Midnight Library models the day-to-day operations of a small library. Users can
+search the catalogue, borrow available books, track due dates, and return them.
+Administrators have a dedicated interface for managing books, categories, and
+inventory.
 
-The core of this project is its relational database schema, designed to ensure data integrity and efficient querying.
-
-### ER Diagram Description
-
-The database consists of the following key entities and relationships:
-
-*   **Users**: Stores user information including authentication credentials and roles (admin/user).
-*   **Books**: Manages the inventory of books, including details like title, author, quantity, and thumbnail.
-*   **Categories**: Defines the various genres or categories of books.
-*   **BooksBorrowed**: A junction table recording borrowing transactions. It links `Users` and `Books`, tracking who borrowed what, when, and the due date.
-*   **CategoriesPerBook**: A junction table implementing a Many-to-Many relationship between `Books` and `Categories`, allowing a book to belong to multiple categories.
-
-### Schema Details  
-
-#### 1. Users Table
-| Field | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | Integer | Primary Key | Unique identifier for the user |
-| `name` | Varchar(100) | Not Null | Full name of the user |
-| `email` | EmailField | Unique, Not Null | User's email address (used for login) |
-| `password` | Varchar(100) | Not Null | Hashed password |
-| `role` | Varchar(10) | Default='user' | Role of the user ('admin' or 'user') |
-
-#### 2. Books Table
-| Field | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | Integer | Primary Key | Unique identifier for the book |
-| `book_name` | Varchar(100) | Not Null | Title of the book |
-| `author` | Varchar(100) | Not Null | Author of the book |
-| `thumbnail` | URLField | Nullable | URL to the book cover image |
-| `quantity` | Integer | Default=1 | Number of copies available |
-
-#### 3. BooksBorrowed Table
-| Field | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | Integer | Primary Key | Unique identifier for the transaction |
-| `user_id` | ForeignKey | References Users(id) | The user who borrowed the book |
-| `book_id` | ForeignKey | References Books(id) | The book being borrowed |
-| `borrowed_date` | Date | Auto Now Add | Date when the book was borrowed |
-| `due_date` | DateTime | Default (+60 days) | Date when the book is due |
-
-#### 4. Categories Table
-| Field | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | Integer | Primary Key | Unique identifier for the category |
-| `category_name` | Varchar(100) | Not Null | Name of the category (e.g., Fiction, Science) |
-
-#### 5. CategoriesPerBook Table
-| Field | Type | Constraints | Description |
-| :--- | :--- | :--- | :--- |
-| `id` | Integer | Primary Key | Unique identifier |
-| `book_id` | ForeignKey | References Books(id) | The book |
-| `category_id` | ForeignKey | References Categories(id) | The category |
+The project was also built as a practical production deployment exercise: the
+application runs in isolated Docker services behind Nginx, with end-to-end TLS,
+restricted origin access, non-root application execution, and persistent
+PostgreSQL storage.
 
 ## Features
 
-### User Features
-*   **Browse & Search**: View all available books and search by title or author.
-*   **Authentication**: Secure registration and login system.
-*   **Borrowing**: Borrow available books (limit: 3 books per user).
-*   **Dashboard**: View borrowed books and return them.
-*   **Validation**: Cannot borrow out-of-stock books or duplicate copies.
+### Readers
 
-### Admin Features
-*   **Dashboard**: Overview of total books, borrowed books, and inventory stats.
-*   **Inventory Management**: Add, update, and delete books.
-*   **Category Management**: Add new categories and assign them to books.
-*   **User Oversight**: View borrowing status of all books.
+- Register and sign in with role-based access.
+- Browse and search books by title or author.
+- Borrow available books, with a maximum of three active loans.
+- Prevent duplicate loans and borrowing out-of-stock books.
+- Track borrowed books and due dates from a personal dashboard.
+- Return books and restore their inventory automatically.
 
-## Technologies Used
+### Administrators
 
-*   **Backend**: Django 5.2 (Python 3.12)
-*   **Database**: PostgreSQL 17
-*   **Containerization**: Docker & Docker Compose
-*   **Dependency Management**: Poetry
-*   **Testing**: Pytest & Pytest-Django
+- View library and borrowing statistics.
+- Add, update, and remove books.
+- Manage book quantities and availability.
+- Create categories and associate them with books.
+- Review active borrowing records.
 
-## Setup & Installation
+## Architecture
 
-### Prerequisites
-*   Docker & Docker Compose
-*   Make (optional, for easy commands)
+```mermaid
+flowchart LR
+    Client[Browser] -->|HTTPS| CF[Cloudflare]
+    CF -->|TLS · Full strict| Nginx[Nginx reverse proxy]
+    Nginx -->|Private Docker network| App[Django · Uvicorn]
+    App -->|Private Docker network| DB[(PostgreSQL)]
+```
 
-### Running the Project
+- **Cloudflare** provides proxied DNS, edge TLS, and protection for the public
+  endpoint.
+- **Nginx** is the only service exposing ports `80` and `443`; it terminates TLS,
+  applies request limits and security headers, serves static files, and proxies
+  application traffic.
+- **Django/Uvicorn** runs as a non-root user and is reachable only inside the
+  Docker network.
+- **PostgreSQL** has no published host port and stores data in a persistent
+  Docker volume.
+- **Host firewall rules** accept web traffic only from Cloudflare's published IP
+  ranges, preventing direct access to the origin over HTTP or HTTPS.
 
-1.  **Clone the repository**
-    ```bash
-    git clone <repository-url>
-    cd library-management-system
-    ```
+## Engineering highlights
 
-2.  **Start the application**
-    Use the `make` command to build and start the containers, run migrations, and load initial data.
-    ```bash
-    make run
-    ```
-    *   Access the app at: `http://localhost:8000`
-    *   Access Adminer (DB GUI) at: `http://localhost:8080`
+- Multi-stage Python image based on `python:3.12-slim`.
+- Poetry is used during dependency installation but excluded from the production
+  runtime image.
+- Production image reduced from approximately **1.94 GB to 261 MB** in local
+  Docker measurements.
+- Separate development and production Compose configurations.
+- Environment-based Django configuration with production HTTPS, cookie, CSRF,
+  host validation, and HSTS settings.
+- Cloudflare Origin CA certificate with **Full (strict)** TLS between Cloudflare
+  and Nginx.
+- Nginx rate limiting, connection limiting, request-size limits, and hardened
+  response headers.
+- UFW plus `DOCKER-USER` rules to prevent Docker port publishing from bypassing
+  the host firewall.
+- Automated migrations and static asset collection during production startup.
+- Secrets, environment files, certificates, caches, and development artefacts
+  excluded from both Git and the Docker build context.
 
-3.  **Stop the application**
-    ```bash
-    make down
-    ```
+## Domain model
 
-4.  **Clean up (Remove volumes & containers)**
-    ```bash
-    make clean
-    ```
+| Entity | Responsibility |
+| --- | --- |
+| `Users` | Reader identity, credentials, and application role |
+| `Books` | Catalogue metadata, cover URL, and available quantity |
+| `Categories` | Reusable book classifications |
+| `CategoriesPerBook` | Many-to-many association between books and categories |
+| `BooksBorrowed` | Loan record linking a reader to a book and due date |
+
+The borrowing workflow enforces inventory availability, prevents duplicate
+active loans, and limits each reader to three borrowed books.
+
+## Technology
+
+| Area | Technology |
+| --- | --- |
+| Backend | Python 3.12, Django 5.2, Uvicorn |
+| Database | PostgreSQL 17 |
+| Reverse proxy | Nginx |
+| Edge and DNS | Cloudflare |
+| Containers | Docker, Docker Compose |
+| Dependencies | Poetry |
+| Tests | Pytest, Pytest-Django |
+| Host | Ubuntu 22.04 VPS |
 
 ## Testing
 
-The project includes a comprehensive integration test suite using `pytest`.
+The integration suite covers:
 
-To run the tests inside the Docker container:
+- Public catalogue access and search.
+- Registration, login, and logout.
+- Borrowing limits and stock validation.
+- Duplicate-loan prevention.
+- Returning books.
+- Administrative CRUD and authorization.
+
+Run it locally with:
+
 ```bash
 make test
 ```
 
-### Test Coverage
-*   Public access & Search
-*   Authentication flows (Login/Register/Logout)
-*   Borrowing logic & limits
-*   Admin CRUD operations
-*   Permission & Security checks
+## Local development
 
-## Production deployment (Ubuntu 22.04 + Cloudflare)
-
-Production uses `compose.prod.yaml`: only Nginx publishes ports (`80` and
-`443`); Django, PostgreSQL and their Docker network remain private. Nginx uses
-a Cloudflare Origin Certificate and the host firewall accepts web traffic only
-from Cloudflare's published IP ranges.
-
-On the VPS, clone the repository and run:
+Requirements: Docker with Docker Compose, plus Make if using the convenience
+commands.
 
 ```bash
-chmod +x scripts/setup-production.sh
-./scripts/setup-production.sh
+cp example.env .env
+make run
 ```
 
-The wizard configures `.env`, installs the Origin Certificate, sets UFW rules,
-starts the stack, and runs Django's deployment checks. Keep the DNS record
-proxied and Cloudflare SSL/TLS mode set to **Full (strict)**. Before enabling
-UFW, verify the SSH port with `sudo sshd -T | grep '^port'`; Ubuntu's default is
-port `22`.
+The development application is available at
+[http://localhost:8000](http://localhost:8000). Development uses a dedicated
+Docker build target with test dependencies, while production uses the minimal
+non-root runtime target.
 
-Useful production commands:
+## Roadmap
 
-```bash
-docker compose -f compose.prod.yaml ps
-docker compose -f compose.prod.yaml logs -f nginx app
-docker compose -f compose.prod.yaml exec app python django-app/manage.py createsuperuser
-docker compose -f compose.prod.yaml pull
-docker compose -f compose.prod.yaml up -d --build
-```
+- Provision VPS and Cloudflare resources with Terraform.
+- Move service orchestration to Kubernetes/K3s.
+- Add CI/CD for tested, repeatable deployments.
+- Add centralized monitoring, logs, and automated backup verification.
+
+## License
+
+Licensed under the [MIT License](LICENSE).

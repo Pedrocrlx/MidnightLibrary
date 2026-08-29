@@ -49,6 +49,11 @@ COPY --from=builder /app/.venv /app/.venv
 COPY --chown=django:django django-app/ /app/django-app/
 COPY --chown=django:django books.json /app/books.json
 
+# A new named volume inherits this directory's ownership. Existing production
+# volumes require the one-time ownership repair documented in the deployment.
+RUN mkdir -p /app/django-app/staticfiles \
+    && chown -R django:django /app/django-app/staticfiles
+
 USER django
 
 EXPOSE 8000
