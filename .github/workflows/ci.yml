@@ -32,7 +32,10 @@ jobs:
         run: docker compose build app
 
       - name: Run test suite
-        run: docker compose run --rm -w /app/django-app app pytest --verbose
+        run: >-
+          docker compose run --rm -w /app/django-app
+          -e DJANGO_DEBUG=true
+          app pytest --verbose
 
       - name: Run Django deployment checks
         run: >-
