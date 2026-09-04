@@ -3,6 +3,15 @@
 set -euo pipefail
 
 CHAIN="ML_CLOUDFLARE"
+EXTERNAL_INTERFACE="${EXTERNAL_INTERFACE:-$(
+  ip -4 route show default \
+    | awk '{ for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit } }'
+)}"
+
+if [[ -z "$EXTERNAL_INTERFACE" ]]; then
+  echo "Unable to determine the public network interface" >&2
+  exit 1
+fi
 
 configure_family() {
   local command="$1" ranges_url="$2"
@@ -15,14 +24,18 @@ configure_family() {
 
   while read -r cidr; do
     [[ -n "$cidr" ]] || continue
-    "$command" -A "$CHAIN" -p tcp -s "$cidr" -m conntrack \
+    "$command" -A "$CHAIN" -i "$EXTERNAL_INTERFACE" \
+      -p tcp -s "$cidr" -m conntrack \
       --ctorigdstport 80 -j RETURN
-    "$command" -A "$CHAIN" -p tcp -s "$cidr" -m conntrack \
+    "$command" -A "$CHAIN" -i "$EXTERNAL_INTERFACE" \
+      -p tcp -s "$cidr" -m conntrack \
       --ctorigdstport 443 -j RETURN
   done < <(curl -fsSL "$ranges_url")
 
-  "$command" -A "$CHAIN" -p tcp -m conntrack --ctorigdstport 80 -j DROP
-  "$command" -A "$CHAIN" -p tcp -m conntrack --ctorigdstport 443 -j DROP
+  "$command" -A "$CHAIN" -i "$EXTERNAL_INTERFACE" \
+    -p tcp -m conntrack --ctorigdstport 80 -j DROP
+  "$command" -A "$CHAIN" -i "$EXTERNAL_INTERFACE" \
+    -p tcp -m conntrack --ctorigdstport 443 -j DROP
   "$command" -A "$CHAIN" -j RETURN
 }
 
