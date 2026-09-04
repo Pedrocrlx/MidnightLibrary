@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      COMPOSE_PROJECT_NAME: midnightlibrary-ci
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Create CI environment
+        run: cp example.env .env
+
+      - name: Build development image
+        run: docker compose build app
+
+      - name: Run test suite
+        run: docker compose run --rm -w /app/django-app app pytest --verbose
+
+      - name: Run Django deployment checks
+        run: >-
+          docker compose run --rm -w /app/django-app
+          -e DJANGO_DEBUG=false
+          -e DJANGO_SECRET_KEY=ci-only-secret-key-not-used-outside-github-actions-123456789
+          app python manage.py check --deploy --fail-level ERROR
+
+      - name: Build production image
+        run: >-
+          docker build --target runtime
+          --tag midnightlibrary:ci
+          --file ops/Dockerfile .
+
+      - name: Clean up containers
+        if: always()
+        run: docker compose down --volumes --remove-orphans

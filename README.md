@@ -1,5 +1,7 @@
 # Midnight Library
 
+[![CI](https://github.com/Pedrocrlx/MidnightLibrary/actions/workflows/ci.yml/badge.svg)](https://github.com/Pedrocrlx/MidnightLibrary/actions/workflows/ci.yml)
+
 A production-deployed library management system built with Django and
 PostgreSQL. It supports catalogue management, borrowing workflows, user roles,
 inventory control, and secure public access through a Cloudflare-protected VPS.
