@@ -20,7 +20,7 @@ services:
       target: development
     ports:
       - 8000:8000
-    command: python django-app/manage.py runserver 0.0.0.0:8000
+    command: poetry run python django-app/manage.py runserver 0.0.0.0:8000
     volumes:
       - ./:/app/
       - /app/.venv
@@ -39,11 +39,10 @@ services:
       - database_network
     depends_on:
       - database
-    
+
 networks:
   database_network:
     driver: bridge
 
 volumes:
   db_data:
-        
