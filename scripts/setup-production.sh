@@ -3,13 +3,6 @@
 # Generated using the /wizard skill.
 set -euo pipefail
 
-# Ensure an interrupted hidden-password prompt never leaves the terminal with
-# keyboard echo disabled.
-restore_terminal() {
-  [[ -t 0 ]] && stty echo 2>/dev/null || true
-}
-trap restore_terminal EXIT INT TERM
-
 DOMAIN="midnightlibrary.pedrocrlx.pt"
 ENV_FILE="${ENV_FILE:-.env}"
 TOTAL_STAGES=6
@@ -35,13 +28,6 @@ upsert_env() {
   mv "$tmp" "$ENV_FILE"
 }
 
-existing_env() {
-  [[ -f "$ENV_FILE" ]] || return 1
-  local line
-  line=$(grep -E "^${1}=" "$ENV_FILE" | tail -n1) || return 1
-  printf '%s' "${line#*=}"
-}
-
 printf '\nMidnight Library · production setup (%s)\n' "$DOMAIN"
 printf 'This wizard configures Cloudflare, secrets, UFW and the Docker stack.\n'
 confirm "Continue?" || exit 0
@@ -58,36 +44,22 @@ stage "Cloudflare Origin Certificate"
 printf 'Abre: https://dash.cloudflare.com/\n'
 printf 'Vai a pedrocrlx.pt → SSL/TLS → Origin Server → Create Certificate.\n'
 printf 'Escolhe PEM, inclui %s e guarda o certificado e a chave em ficheiros locais.\n' "$DOMAIN"
-DEFAULT_CERT_SOURCE="$HOME/cloudflare-origin-certificate.pem"
-DEFAULT_KEY_SOURCE="$HOME/cloudflare-origin-certificate.key"
-read -r -p "Caminho do certificado PEM [$DEFAULT_CERT_SOURCE]: " CERT_SOURCE
-CERT_SOURCE=${CERT_SOURCE:-$DEFAULT_CERT_SOURCE}
-read -r -p "Caminho da chave privada PEM [$DEFAULT_KEY_SOURCE]: " KEY_SOURCE
-KEY_SOURCE=${KEY_SOURCE:-$DEFAULT_KEY_SOURCE}
+read -r -p "Caminho do certificado PEM: " CERT_SOURCE
+read -r -p "Caminho da chave privada PEM: " KEY_SOURCE
 [[ -f "$CERT_SOURCE" && -f "$KEY_SOURCE" ]] || { echo "Certificado ou chave não encontrados"; exit 1; }
 mkdir -p secrets
-install -m 0644 "$CERT_SOURCE" secrets/cloudflare-origin-certificate.pem
-install -m 0600 "$KEY_SOURCE" secrets/cloudflare-origin-certificate.key
+install -m 0644 "$CERT_SOURCE" secrets/cloudflare-origin.pem
+install -m 0600 "$KEY_SOURCE" secrets/cloudflare-origin.key
 
 stage "Configuração segura da aplicação"
-CURRENT_POSTGRES_DB=$(existing_env POSTGRES_DB || true)
-CURRENT_POSTGRES_USER=$(existing_env POSTGRES_USER || true)
-CURRENT_POSTGRES_PASSWORD=$(existing_env POSTGRES_PASSWORD || true)
-CURRENT_DJANGO_SECRET_KEY=$(existing_env DJANGO_SECRET_KEY || true)
-DEFAULT_POSTGRES_DB=${CURRENT_POSTGRES_DB:-midnightlibrary}
-DEFAULT_POSTGRES_USER=${CURRENT_POSTGRES_USER:-midnightlibrary}
-read -r -p "Nome da base de dados [$DEFAULT_POSTGRES_DB]: " POSTGRES_DB
-POSTGRES_DB=${POSTGRES_DB:-$DEFAULT_POSTGRES_DB}
-read -r -p "Utilizador PostgreSQL [$DEFAULT_POSTGRES_USER]: " POSTGRES_USER
-POSTGRES_USER=${POSTGRES_USER:-$DEFAULT_POSTGRES_USER}
-if [[ -n "$CURRENT_POSTGRES_PASSWORD" ]]; then
-  read -r -s -p "Password PostgreSQL [Enter mantém a atual]: " POSTGRES_PASSWORD
-else
-  read -r -s -p "Password PostgreSQL [Enter gera uma]: " POSTGRES_PASSWORD
-fi
+read -r -p "Nome da base de dados [midnightlibrary]: " POSTGRES_DB
+POSTGRES_DB=${POSTGRES_DB:-midnightlibrary}
+read -r -p "Utilizador PostgreSQL [midnightlibrary]: " POSTGRES_USER
+POSTGRES_USER=${POSTGRES_USER:-midnightlibrary}
+read -r -s -p "Password PostgreSQL (Enter para gerar): " POSTGRES_PASSWORD
 printf '\n'
-POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-${CURRENT_POSTGRES_PASSWORD:-$(openssl rand -hex 32)}}
-DJANGO_SECRET_KEY=${CURRENT_DJANGO_SECRET_KEY:-$(openssl rand -base64 48 | tr -d '\n')}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-$(openssl rand -hex 32)}
+DJANGO_SECRET_KEY=$(openssl rand -base64 48 | tr -d '\n')
 upsert_env POSTGRES_DB "$POSTGRES_DB"
 upsert_env POSTGRES_USER "$POSTGRES_USER"
 upsert_env POSTGRES_PASSWORD "$POSTGRES_PASSWORD"
@@ -133,7 +105,7 @@ stage "Arranque da aplicação"
 docker compose -f compose.prod.yaml up -d --build
 sudo systemctl restart midnightlibrary-firewall.service
 docker compose -f compose.prod.yaml ps
-docker compose -f compose.prod.yaml exec app python django-app/manage.py check --deploy
+docker compose -f compose.prod.yaml exec app poetry run python django-app/manage.py check --deploy
 
 stage "SSL/TLS e validação"
 printf 'Na Cloudflare: SSL/TLS → Overview → seleciona Full (strict).\n'

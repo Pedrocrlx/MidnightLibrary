@@ -37,9 +37,6 @@ services:
   nginx:
     image: nginx:1.28-alpine
     restart: unless-stopped
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - ./ops/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./ops/nginx/cloudflare-realip.conf:/etc/nginx/conf.d/cloudflare-realip.conf:ro
@@ -48,12 +45,16 @@ services:
       - static_data:/var/www/static:ro
     networks:
       - backend
+      - proxy
     depends_on:
       - app
 
 networks:
   backend:
     driver: bridge
+  proxy:
+    external: true
+    name: vps-proxy
 
 volumes:
   db_data:
