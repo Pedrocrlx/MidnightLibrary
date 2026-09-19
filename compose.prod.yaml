@@ -44,8 +44,10 @@ services:
       - ./secrets/cloudflare-origin-certificate.key:/etc/nginx/certs/origin.key:ro
       - static_data:/var/www/static:ro
     networks:
-      - backend
-      - proxy
+      backend: {}
+      proxy:
+        aliases:
+          - midnightlibrary-web
     depends_on:
       - app
 
